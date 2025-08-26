@@ -277,7 +277,7 @@
         : productSelect.value;
 
       const order = {
-        date: now.toLocaleString('fr-FR'),
+        date: now.toISOString(), // ✅ Format universel
         customer: document.getElementById("customer").value.trim(),
         product: selectedProduct,
         quantity: document.getElementById("quantity").value,
