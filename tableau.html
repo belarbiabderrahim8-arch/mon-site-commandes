@@ -139,10 +139,6 @@
     </div>
   </div>
   <script>
-    if (localStorage.getItem("authenticated") !== "true") {
-      window.location.href = "password.html";
-    }
-
     const ordersList = document.getElementById("ordersList");
     const noOrders = document.getElementById("noOrders");
     const searchInput = document.getElementById("searchInput");
@@ -150,7 +146,7 @@
     const sortBy = document.getElementById("sortBy");
     const orderCount = document.getElementById("orderCount");
 
-    // 🔗 URL CSV de ton Google Sheet
+    // 🔗 URL CSV du Google Sheet (lié à ton Google Form)
     const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRMnqyGsHgIMai0nYRtyqtx1sWh4Q_hDhZW7bU189J8jiwUnGJch2F3tLfgvQ9X4WEwoCOERZiHT-ex/pub?output=csv";
 
     async function loadOrdersFromSheet() {
@@ -159,20 +155,36 @@
         const text = await resp.text();
         const lines = text.trim().split('\n');
         
+        if (lines.length < 2) return [];
+
         const headers = lines[0].split(',').map(h => h.trim());
         const orders = [];
 
         for (let i = 1; i < lines.length; i++) {
           const values = lines[i].split(',').map(v => v.trim().replace(/^"(.*)"$/, '$1'));
           const order = {};
+          
           headers.forEach((h, idx) => {
             order[h] = values[idx] || "";
           });
+
+          // Renommer les champs pour correspondre à ton formulaire
+          order.date = order["Horodateur"] || order["Timestamp"] || "";
+          order.customer = order["Nom complet"] || "";
+          order.phone = order["Téléphone"] || "";
+          order.product = order["Produit"] || "";
+          order.quantity = order["Quantité"] || "1";
+          order.wilaya = order["Wilaya"] || "";
+          order.address = order["Adresse"] || "";
+          order.payment = "À domicile";
+
           orders.push(order);
         }
+
         return orders;
       } catch (error) {
         console.error("Erreur de chargement", error);
+        alert("Impossible de charger les commandes. Vérifie ta connexion.");
         return [];
       }
     }
@@ -227,9 +239,6 @@
             <button onclick="sendWhatsApp('${order.phone}')" class="action-btn bg-green-100 hover:bg-green-200 text-green-800 px-3 py-1 rounded-lg text-xs font-medium">
               <i class="fab fa-whatsapp mr-1"></i> WhatsApp
             </button>
-            <button onclick="deleteOrder(${index})" class="action-btn bg-red-100 hover:bg-red-200 text-red-800 px-3 py-1 rounded-lg text-xs font-medium">
-              <i class="fas fa-trash-alt mr-1"></i> Supprimer
-            </button>
           </td>
         `;
         ordersList.appendChild(tr);
@@ -237,15 +246,10 @@
     }
 
     function formatDate(dateString) {
+      if (!dateString) return "Date inconnue";
       const date = new Date(dateString);
       if (isNaN(date.getTime())) return "Date invalide";
-      const options = { 
-        day: '2-digit', 
-        month: '2-digit', 
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      };
+      const options = { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' };
       return date.toLocaleDateString('fr-FR', options);
     }
 
@@ -280,10 +284,6 @@
     function sendWhatsApp(phone) {
       const cleanPhone = phone.replace(/[^0-9]/g, '');
       window.open(`https://wa.me/213${cleanPhone}`, '_blank');
-    }
-
-    function deleteOrder(index) {
-      alert("Suppression désactivée car les données sont dans Google Sheets.");
     }
 
     function exportToCSV() {
