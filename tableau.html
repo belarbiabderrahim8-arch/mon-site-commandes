@@ -80,7 +80,7 @@
             <label class="block text-sm font-medium text-gray-700 mb-1">Filtrer par :</label>
             <select id="filterPayment" onchange="renderOrders()" class="border border-gray-300 rounded-lg px-3 py-2 focus:ring-green-500 focus:border-green-500">
               <option value="all">Tous les paiements</option>
-              <option value="cash">Paiement à domicile</option>
+              <option value="À domicile">Paiement à domicile</option>
             </select>
           </div>
           <div>
@@ -126,7 +126,6 @@
       </div>
     </footer>
   </div>
-
   <div id="orderModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
     <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
       <div class="flex justify-between items-center border-b border-gray-200 px-6 py-4">
@@ -139,7 +138,6 @@
       </div>
     </div>
   </div>
-
   <script>
     if (localStorage.getItem("authenticated") !== "true") {
       window.location.href = "password.html";
@@ -152,27 +150,37 @@
     const sortBy = document.getElementById("sortBy");
     const orderCount = document.getElementById("orderCount");
 
-    document.addEventListener('DOMContentLoaded', () => {
-      renderOrders();
-      searchInput.addEventListener('input', renderOrders);
-    });
+    // 🔗 URL CSV de ton Google Sheet
+    const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRMnqyGsHgIMai0nYRtyqtx1sWh4Q_hDhZW7bU189J8jiwUnGJch2F3tLfgvQ9X4WEwoCOERZiHT-ex/pub?output=csv";
 
-    function formatDate(dateString) {
-      const date = new Date(dateString);
-      if (isNaN(date.getTime())) return "Date invalide";
-      const options = { 
-        day: '2-digit', 
-        month: '2-digit', 
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      };
-      return date.toLocaleDateString('fr-FR', options);
+    async function loadOrdersFromSheet() {
+      try {
+        const resp = await fetch(CSV_URL);
+        const text = await resp.text();
+        const lines = text.trim().split('\n');
+        
+        const headers = lines[0].split(',').map(h => h.trim());
+        const orders = [];
+
+        for (let i = 1; i < lines.length; i++) {
+          const values = lines[i].split(',').map(v => v.trim().replace(/^"(.*)"$/, '$1'));
+          const order = {};
+          headers.forEach((h, idx) => {
+            order[h] = values[idx] || "";
+          });
+          orders.push(order);
+        }
+        return orders;
+      } catch (error) {
+        console.error("Erreur de chargement", error);
+        return [];
+      }
     }
 
-    function renderOrders() {
+    async function renderOrders() {
       ordersList.innerHTML = "";
-      let orders = JSON.parse(localStorage.getItem("orders")) || [];
+      let orders = await loadOrdersFromSheet();
+
       const searchTerm = searchInput.value.toLowerCase();
       const paymentFilter = filterPayment.value;
 
@@ -228,6 +236,19 @@
       });
     }
 
+    function formatDate(dateString) {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return "Date invalide";
+      const options = { 
+        day: '2-digit', 
+        month: '2-digit', 
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      };
+      return date.toLocaleDateString('fr-FR', options);
+    }
+
     function viewOrderDetails(index) {
       const orders = JSON.parse(localStorage.getItem("orders")) || [];
       const order = orders[index];
@@ -255,34 +276,18 @@
     }
 
     function closeModal() { orderModal.classList.add("hidden"); }
+
     function sendWhatsApp(phone) {
       const cleanPhone = phone.replace(/[^0-9]/g, '');
       window.open(`https://wa.me/213${cleanPhone}`, '_blank');
     }
 
     function deleteOrder(index) {
-      if (confirm("Voulez-vous vraiment supprimer cette commande ?")) {
-        let orders = JSON.parse(localStorage.getItem("orders")) || [];
-        orders.splice(index, 1);
-        localStorage.setItem("orders", JSON.stringify(orders));
-        renderOrders();
-        showToast('Commande supprimée', 'success');
-      }
+      alert("Suppression désactivée car les données sont dans Google Sheets.");
     }
 
     function exportToCSV() {
-      const orders = JSON.parse(localStorage.getItem("orders")) || [];
-      if (orders.length === 0) return showToast('Aucune commande', 'error');
-      const csv = [
-        ["Date", "Client", "Produit", "Quantité", "Téléphone", "Wilaya", "Adresse", "Paiement"].join(";"),
-        ...orders.map(o => [o.date, o.customer, o.product, o.quantity, o.phone, o.wilaya, o.address, "À domicile"].join(";"))
-      ].join("\n");
-      const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = `export-${new Date().toISOString().slice(0,10)}.csv`;
-      link.click();
-      showToast('Exporté', 'success');
+      window.open(CSV_URL, '_blank');
     }
 
     function logout() {
@@ -292,13 +297,10 @@
       }
     }
 
-    function showToast(message, type) {
-      const toast = document.createElement('div');
-      toast.className = `fixed bottom-4 right-4 px-4 py-2 rounded-lg shadow-lg text-white font-medium ${type === 'success' ? 'bg-green-500' : 'bg-red-500'}`;
-      toast.innerHTML = `<i class="fas fa-${type === 'success' ? 'check' : 'exclamation'}-circle mr-2"></i> ${message}`;
-      document.body.appendChild(toast);
-      setTimeout(() => { toast.remove(); }, 3000);
-    }
+    document.addEventListener('DOMContentLoaded', () => {
+      renderOrders();
+      searchInput.addEventListener('input', renderOrders);
+    });
   </script>
 </body>
 </html>
